@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-test:
+    name: Lint, Test & Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black bandit pytest pytest-cov moto boto3 aws-lambda-powertools Pillow blurhash-python aws-xray-sdk
+
+      - name: Python Lint (flake8)
+        run: |
+          flake8 lambda/ --max-line-length=100 --extend-ignore=E203,W503
+
+      - name: Python Code Formatting (black)
+        run: |
+          black --check lambda/ --line-length=100
+
+      - name: Python Unit Tests with Coverage (pytest)
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+          POWERTOOLS_TRACE_DISABLED: "true"
+          PROCESSED_BUCKET: test-processed-bucket
+          METADATA_TABLE: test-metadata-table
+          KMS_KEY_ARN: arn:aws:kms:us-east-1:123456789012:key/test-key
+        run: |
+          pytest lambda/image-processor lambda/image-api -v --cov=lambda/image-processor --cov=lambda/image-api --cov-report=term-missing
+
+      - name: Python SAST Security Scan (Bandit)
+        run: |
+          bandit -r lambda/ -ll
+
+      - name: Secret Detection (Gitleaks)
+        run: |
+          curl -sSL -o /tmp/gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp/
+          /tmp/gitleaks detect --source . --verbose --no-git
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.5"
+
+      - name: Terraform Format Check
+        run: |
+          terraform fmt -check -recursive terraform/
+
+      - name: Terraform Init & Validate
+        run: |
+          cd terraform/live/dev
+          terraform init -backend=false
+          terraform validate
+
+      - name: Terraform Security Scan (tfsec)
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: terraform/
+
+      - name: Terraform Policy Scan (Checkov)
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform/
+          framework: terraform
+          hard_fail_on: HIGH,CRITICAL
+          quiet: true
+          compact: true
+
+  deploy-gate:
+    name: Deployment Gate
+    needs: validate-and-test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      HAVE_AWS_SECRETS: ${{ secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != '' }}
+    steps:
+      - name: Evaluate AWS Credentials Presence
+        run: |
+          if [ "${{ env.HAVE_AWS_SECRETS }}" = "true" ]; then
+            echo "AWS credentials detected. Ready to trigger live deployment."
+          else
+            echo "AWS credentials not detected in repository secrets."
+            echo "Deploy step skipped gracefully. Static code and IaC validation succeeded."
+          fi
+
+      - name: Package Lambda Functions
+        if: env.HAVE_AWS_SECRETS == 'true'
+        run: |
+          mkdir -p dist
+          echo "Packaging Lambdas..."
