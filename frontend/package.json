@@ -1,0 +1,11 @@
+{
+  "name": "serverless-imageflow-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Serverless ImageFlow - Upload widget and gallery UI",
+  "scripts": {
+    "start": "python3 -m http.server 3000 --bind 0.0.0.0",
+    "build": "echo 'Static site - no build step required'",
+    "deploy": "aws s3 sync . s3://$BUCKET_NAME --exclude 'node_modules/*' --exclude '.git/*'"
+  }
+}

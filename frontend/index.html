@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AWS Serverless ImageFlow - Event-Driven Image Pipeline</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-container">
+      <a href="#/gallery" class="brand">
+        <div class="brand-icon">IF</div>
+        <div>
+          <span class="brand-title">Serverless ImageFlow</span>
+          <span class="brand-badge">AWS Zero-Server</span>
+        </div>
+      </a>
+      <nav class="nav-links">
+        <button id="navGallery" class="nav-btn active" onclick="navigateTo('gallery')">Gallery</button>
+        <button id="navUpload" class="nav-btn" onclick="navigateTo('upload')">Upload Pipeline</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div id="root">
+      <!-- Injected via vanilla ES6 components -->
+    </div>
+  </main>
+
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <script src="src/App.js"></script>
+  <script src="src/Upload.js"></script>
+  <script src="src/Gallery.js"></script>
+</body>
+</html>
