@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# Environment
+.env
+.venv
+venv/
+venv312/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Terraform
+terraform/.terraform/
+terraform/**/.terraform/
+terraform/**/*.tfstate
+terraform/**/*.tfstate.backup
+*.tfstate
+*.tfstate.backup
+crash.log
+
+# Lambda Packages
+*.zip
+lambda/**/dist/
+lambda/**/package/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.coverage.*
+
+# Logs
+*.log
+
+# Frontend
+frontend/node_modules/
+
+# Build Artifacts
+/tmp/
+bandit-report.json
+safety-*.json
+test-results.xml

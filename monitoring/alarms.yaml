@@ -1,0 +1,123 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Serverless ImageFlow - CloudWatch Alarms"
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [dev, prod]
+    Default: dev
+
+  ProcessorFunctionName:
+    Type: String
+    Description: ImageProcessor Lambda function name
+
+  ApiFunctionName:
+    Type: String
+    Description: ImageAPI Lambda function name
+
+  DynamoDBTableName:
+    Type: String
+    Description: DynamoDB metadata table name
+
+  DLQQueueName:
+    Type: String
+    Description: Dead-letter queue name
+
+  SNSTopicArn:
+    Type: String
+    Default: ""
+    Description: SNS topic for alarm notifications
+
+Resources:
+  LambdaErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "ImageFlow-LambdaErrors-${Environment}"
+      AlarmDescription: "Lambda error rate exceeds 5%"
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ProcessorFunctionName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasSNS, [!Ref SNSTopicArn], !Ref "AWS::NoValue"]
+
+  LambdaDurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "ImageFlow-LambdaDuration-${Environment}"
+      AlarmDescription: "Lambda duration exceeds 10 seconds"
+      Namespace: AWS/Lambda
+      MetricName: Duration
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ProcessorFunctionName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 10000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasSNS, [!Ref SNSTopicArn], !Ref "AWS::NoValue"]
+
+  DynamoDBThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "ImageFlow-DynamoDBThrottles-${Environment}"
+      AlarmDescription: "DynamoDB throttle events detected"
+      Namespace: AWS/DynamoDB
+      MetricName: ThrottledRequests
+      Dimensions:
+        - Name: TableName
+          Value: !Ref DynamoDBTableName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasSNS, [!Ref SNSTopicArn], !Ref "AWS::NoValue"]
+
+  DLQMessagesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "ImageFlow-DLQMessages-${Environment}"
+      AlarmDescription: "Messages in dead-letter queue"
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !Ref DLQQueueName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasSNS, [!Ref SNSTopicArn], !Ref "AWS::NoValue"]
+
+  StepFunctionsFailedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "ImageFlow-StepFunctionsFailed-${Environment}"
+      AlarmDescription: "Step Functions execution failures detected"
+      Namespace: AWS/States
+      MetricName: ExecutionsFailed
+      Dimensions:
+        - Name: StateMachine
+          Value: !Sub "ImageFlow-Processor-${Environment}"
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasSNS, [!Ref SNSTopicArn], !Ref "AWS::NoValue"]
+
+Conditions:
+  HasSNS: !Not [!Equals [!Ref SNSTopicArn, ""]]

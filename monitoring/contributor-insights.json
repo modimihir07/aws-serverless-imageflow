@@ -1,0 +1,77 @@
+{
+  "ContributorInsightRules": [
+    {
+      "RuleName": "ImageFlow-TopUploadingIPs-REPLACE_WITH_ENVIRONMENT",
+      "RuleState": "ENABLED",
+      "RuleBody": {
+        "Schema": {
+          "Name": "CloudWatchLogsRule",
+          "Version": 1
+        },
+        "LogGroupNames": [
+          "/aws/lambda/ImageFlow-ImageProcessor-REPLACE_WITH_ENVIRONMENT"
+        ],
+        "Fields": {
+          "ip": "$.context.identity.sourceIp"
+        },
+        "Contribution": {
+          "Keys": ["ip"],
+          "AggregateOn": "Count",
+          "Filters": []
+        }
+      }
+    },
+    {
+      "RuleName": "ImageFlow-TopErrors-REPLACE_WITH_ENVIRONMENT",
+      "RuleState": "ENABLED",
+      "RuleBody": {
+        "Schema": {
+          "Name": "CloudWatchLogsRule",
+          "Version": 1
+        },
+        "LogGroupNames": [
+          "/aws/lambda/ImageFlow-ImageProcessor-REPLACE_WITH_ENVIRONMENT",
+          "/aws/lambda/ImageFlow-ImageAPI-REPLACE_WITH_ENVIRONMENT"
+        ],
+        "Fields": {
+          "errorMessage": "$.errorMessage"
+        },
+        "Contribution": {
+          "Keys": ["errorMessage"],
+          "AggregateOn": "Count",
+          "Filters": [
+            {
+              "Type": "NOT",
+              "Filter": {
+                "Field": "isError",
+                "Value": false
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "RuleName": "ImageFlow-SlowProcessing-REPLACE_WITH_ENVIRONMENT",
+      "RuleState": "ENABLED",
+      "RuleBody": {
+        "Schema": {
+          "Name": "CloudWatchLogsRule",
+          "Version": 1
+        },
+        "LogGroupNames": [
+          "/aws/lambda/ImageFlow-ImageProcessor-REPLACE_WITH_ENVIRONMENT"
+        ],
+        "Fields": {
+          "image_id": "$.image_id",
+          "duration": "$.duration"
+        },
+        "Contribution": {
+          "Keys": ["image_id"],
+          "AggregateOn": "Sum",
+          "Filters": []
+        }
+      }
+    }
+  ]
+}
